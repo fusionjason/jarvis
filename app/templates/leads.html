@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Leads{% endblock %}
+{% block content %}
+<div class="grid">
+  {% for status in statuses %}
+  <div class="card"><span>{{ status.value.replace('_', ' ') }}</span><b>{{ counts.get(status, 0) }}</b></div>
+  {% endfor %}
+</div>
+
+<div class="row">
+  <form method="post" action="/campaigns/run"><button type="submit">Run due campaign steps</button></form>
+  <span class="blocked">{{ campaigns | length }} campaign(s) configured</span>
+</div>
+
+<h2>Leads</h2>
+<table>
+  <tr><th>Name</th><th>Phone</th><th>State</th><th>Status</th><th>Attempts</th><th>Last contact</th></tr>
+  {% for lead in leads %}
+  <tr>
+    <td><a class="lead" href="/leads/{{ lead.id }}">{{ lead.full_name or 'Unknown' }}</a></td>
+    <td>{{ lead.phone }}</td>
+    <td>{{ lead.state }}</td>
+    <td><span class="pill {{ lead.status.value }}">{{ lead.status.value.replace('_', ' ') }}</span></td>
+    <td>{{ lead.attempts }}</td>
+    <td>{{ lead.last_contacted_at.strftime('%Y-%m-%d %H:%M') if lead.last_contacted_at else '—' }}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="6">No leads yet. POST /api/leads or upload a CSV to /api/leads/import.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

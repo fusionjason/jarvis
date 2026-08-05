@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}{{ lead.full_name }}{% endblock %}
+{% block content %}
+<div class="row" style="justify-content:space-between">
+  <div>
+    <h1 style="margin:0">{{ lead.full_name or 'Unknown lead' }}</h1>
+    <span class="blocked">{{ lead.phone }} · {{ lead.state or 'no state' }} · {{ lead.timezone }} ·
+      <span class="pill {{ lead.status.value }}">{{ lead.status.value.replace('_', ' ') }}</span>
+    </span>
+  </div>
+  <form method="post" action="/leads/{{ lead.id }}/opt-out">
+    <button class="danger" type="submit">Mark do-not-contact</button>
+  </form>
+</div>
+
+<h2>Contact eligibility</h2>
+<div class="card">
+  <div>SMS: {% if sms_decision.allowed %}allowed{% else %}<span class="blocked">blocked — {{ sms_decision.reason }}</span>{% endif %}</div>
+  <div>Voice: {% if voice_decision.allowed %}allowed{% else %}<span class="blocked">blocked — {{ voice_decision.reason }}</span>{% endif %}</div>
+</div>
+
+<h2>Conversation</h2>
+<div class="card">
+  {% for message in messages %}
+  <div class="msg {{ message.direction.value }}">{{ message.body }}
+    <small>{{ message.direction.value }} · {{ message.status or 'sent' }} · {{ message.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+  </div>
+  {% else %}
+  <span class="blocked">No messages yet.</span>
+  {% endfor %}
+</div>
+
+<h2>Actions</h2>
+<form method="post" action="/leads/{{ lead.id }}/text">
+  <input type="text" name="body" placeholder="Leave empty to let {{ settings.assistant_name }} draft the next text">
+  <div class="row" style="margin-top:10px">
+    <button type="submit">Send text</button>
+  </div>
+</form>
+<form method="post" action="/leads/{{ lead.id }}/call" style="margin-top:10px">
+  <button class="ghost" type="submit">Start AI voice call</button>
+</form>
+
+<h2>Calls</h2>
+<table>
+  <tr><th>When</th><th>Status</th><th>Disposition</th><th>Summary</th></tr>
+  {% for call in calls %}
+  <tr>
+    <td>{{ call.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+    <td>{{ call.status }}</td>
+    <td>{{ call.disposition or '—' }}</td>
+    <td>{{ call.summary or '—' }}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="4">No calls yet.</td></tr>
+  {% endfor %}
+</table>
+
+<h2>Compliance audit trail</h2>
+<table>
+  <tr><th>When</th><th>Event</th><th>Channel</th><th>Allowed</th><th>Detail</th></tr>
+  {% for entry in audits %}
+  <tr>
+    <td>{{ entry.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+    <td>{{ entry.event }}</td>
+    <td>{{ entry.channel.value if entry.channel else '—' }}</td>
+    <td>{{ '—' if entry.allowed is none else ('yes' if entry.allowed else 'no') }}</td>
+    <td>{{ entry.detail }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}
