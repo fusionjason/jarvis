@@ -14,11 +14,12 @@
 
 <h2>Leads</h2>
 <table>
-  <tr><th>Name</th><th>Phone</th><th>State</th><th>Status</th><th>Attempts</th><th>Last contact</th></tr>
+  <tr><th>Name</th><th>Phone</th><th>Email</th><th>State</th><th>Status</th><th>Attempts</th><th>Last contact</th></tr>
   {% for lead in leads %}
   <tr>
     <td><a class="lead" href="/leads/{{ lead.id }}">{{ lead.full_name or 'Unknown' }}</a></td>
     <td>{{ lead.phone }}</td>
+    <td>{{ lead.email or '—' }}</td>
     <td>{{ lead.state }}</td>
     <td><span class="pill {{ lead.status.value }}">{{ lead.status.value.replace('_', ' ') }}</span></td>
     <td>{{ lead.attempts }}</td>

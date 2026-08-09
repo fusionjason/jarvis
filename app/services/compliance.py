@@ -165,8 +165,14 @@ def check_contact_allowed(
     settings = get_settings()
     decision: ContactDecision
 
+    # Email is not restricted to calling hours, and needs an address rather than a number.
+    if channel is Channel.email:
+        enforce_time_window = False
+
     if lead.status is LeadStatus.do_not_contact:
         decision = ContactDecision(False, "lead marked do-not-contact")
+    elif channel is Channel.email and not lead.email:
+        decision = ContactDecision(False, "no email address on file")
     elif is_on_dnc(session, lead.phone):
         decision = ContactDecision(False, "phone is on the internal do-not-contact list")
     elif not has_consent(session, lead, channel):
@@ -213,6 +219,18 @@ def revoke_consent(session: Session, lead: Lead, channel: Channel, evidence: str
     session.add(consent)
     session.flush()
     return consent
+
+
+def find_by_unsubscribe_token(session: Session, token: str) -> Lead | None:
+    if not token:
+        return None
+    return session.scalar(select(Lead).where(Lead.unsubscribe_token == token))
+
+
+def handle_email_unsubscribe(session: Session, lead: Lead, evidence: str) -> None:
+    """Revoke email consent only; an email unsubscribe says nothing about phone consent."""
+    revoke_consent(session, lead, Channel.email, evidence)
+    record_audit(session, lead=lead, event="email_unsubscribe", channel=Channel.email, detail=evidence)
 
 
 def classify_keyword(body: str) -> str | None:

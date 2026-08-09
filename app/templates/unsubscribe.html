@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Unsubscribe{% endblock %}
+{% block content %}
+<div class="card">
+  {% if found %}
+  <h1 style="margin-top:0">You're unsubscribed</h1>
+  <p>You won't receive any more email from {{ settings.agency_name }}. If you'd also like us to stop
+    calling or texting, reply STOP to any text from us.</p>
+  {% else %}
+  <h1 style="margin-top:0">Link not recognized</h1>
+  <p>That unsubscribe link is invalid or has expired. Contact {{ settings.agency_name }} directly and
+    we'll remove you.</p>
+  {% endif %}
+</div>
+{% endblock %}

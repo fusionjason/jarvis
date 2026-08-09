@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.models import Call, Channel, Direction, Lead, LeadStatus, Message
-from app.services import compliance, llm, telephony
+from app.services import compliance, llm, mailer, telephony
 
 
 class ContactBlocked(Exception):
@@ -46,6 +46,7 @@ def send_text(
     result = telephony.send_sms(lead.phone, body) if deliver else telephony.SendResult("twiml", "twiml")
     message = Message(
         lead_id=lead.id,
+        channel=Channel.sms,
         direction=Direction.outbound,
         body=body,
         provider_sid=result.sid,
@@ -58,6 +59,58 @@ def send_text(
         lead.status = LeadStatus.contacted
     compliance.record_audit(
         session, lead=lead, event="sms_sent", channel=Channel.sms, allowed=True, detail=body[:400]
+    )
+    session.flush()
+    return message
+
+
+def send_email(
+    session: Session,
+    lead: Lead,
+    subject: str = "",
+    body: str = "",
+    *,
+    force: bool = False,
+) -> Message:
+    """Send an outbound email, letting the assistant draft it when subject/body are empty."""
+    if not force:
+        decision = compliance.check_contact_allowed(session, lead, Channel.email)
+        if not decision:
+            raise ContactBlocked(decision.reason)
+
+    if not subject or not body:
+        draft = llm.draft_email(
+            lead.full_name,
+            lead.coverage_interest,
+            conversation_history(session, lead),
+            goal=f"Book a short call with {get_settings().licensed_agent_name}",
+        )
+        subject = subject or draft.subject
+        body = body or draft.body
+
+    result = mailer.send_email(
+        to_email=lead.email,
+        to_name=lead.full_name,
+        subject=subject,
+        body=body,
+        unsubscribe_token=lead.ensure_unsubscribe_token(),
+    )
+    message = Message(
+        lead_id=lead.id,
+        channel=Channel.email,
+        direction=Direction.outbound,
+        subject=subject,
+        body=body,
+        provider_sid=result.message_id,
+        status=result.status,
+    )
+    session.add(message)
+    lead.attempts += 1
+    lead.last_contacted_at = datetime.now(timezone.utc)
+    if lead.status is LeadStatus.new:
+        lead.status = LeadStatus.contacted
+    compliance.record_audit(
+        session, lead=lead, event="email_sent", channel=Channel.email, allowed=True, detail=subject[:400]
     )
     session.flush()
     return message
@@ -89,7 +142,13 @@ def start_call(session: Session, lead: Lead, *, force: bool = False) -> Call:
 
 
 def record_inbound_text(session: Session, lead: Lead, body: str, sid: str = "") -> Message:
-    message = Message(lead_id=lead.id, direction=Direction.inbound, body=body, provider_sid=sid)
+    message = Message(
+        lead_id=lead.id,
+        channel=Channel.sms,
+        direction=Direction.inbound,
+        body=body,
+        provider_sid=sid,
+    )
     session.add(message)
     if lead.status in (LeadStatus.new, LeadStatus.contacted):
         lead.status = LeadStatus.engaged

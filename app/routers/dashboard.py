@@ -17,9 +17,19 @@ router = APIRouter(tags=["dashboard"])
 templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent.parent / "templates"))
 
 
+def _chrome() -> dict[str, object]:
+    """Context every page needs: settings plus the provider status badges."""
+    settings = get_settings()
+    return {
+        "settings": settings,
+        "twilio_ready": settings.twilio_configured,
+        "smtp_ready": settings.smtp_configured,
+        "openai_ready": settings.openai_configured,
+    }
+
+
 @router.get("/", response_class=HTMLResponse)
 def index(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
-    settings = get_settings()
     leads = list(session.scalars(select(Lead).order_by(Lead.created_at.desc()).limit(200)))
     counts: dict[LeadStatus, int] = {
         status: count
@@ -31,12 +41,10 @@ def index(request: Request, session: Session = Depends(get_session)) -> HTMLResp
         request,
         "leads.html",
         {
+            **_chrome(),
             "leads": leads,
             "counts": counts,
             "statuses": list(LeadStatus),
-            "settings": settings,
-            "twilio_ready": settings.twilio_configured,
-            "openai_ready": settings.openai_configured,
             "campaigns": list(session.scalars(select(Campaign).order_by(Campaign.id))),
         },
     )
@@ -58,20 +66,20 @@ def lead_detail(
         )
     )
     sms_decision = compliance.check_contact_allowed(session, lead, Channel.sms)
+    email_decision = compliance.check_contact_allowed(session, lead, Channel.email)
     voice_decision = compliance.check_contact_allowed(session, lead, Channel.voice)
     return templates.TemplateResponse(
         request,
         "lead_detail.html",
         {
+            **_chrome(),
             "lead": lead,
             "messages": messages,
             "calls": calls,
             "audits": audits,
             "sms_decision": sms_decision,
+            "email_decision": email_decision,
             "voice_decision": voice_decision,
-            "settings": get_settings(),
-            "twilio_ready": get_settings().twilio_configured,
-            "openai_ready": get_settings().openai_configured,
         },
     )
 
@@ -97,6 +105,23 @@ def dashboard_text(
     return RedirectResponse(f"/leads/{lead_id}", status_code=303)
 
 
+@router.post("/leads/{lead_id}/email")
+def dashboard_email(
+    lead_id: int,
+    subject: str = Form(default=""),
+    body: str = Form(default=""),
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    lead = session.get(Lead, lead_id)
+    if lead is None:
+        raise HTTPException(status_code=404, detail="lead not found")
+    try:
+        conversation.send_email(session, lead, subject.strip(), body.strip())
+    except conversation.ContactBlocked as exc:
+        return RedirectResponse(f"/leads/{lead_id}?error={exc.reason}", status_code=303)
+    return RedirectResponse(f"/leads/{lead_id}", status_code=303)
+
+
 @router.post("/leads/{lead_id}/call")
 def dashboard_call(lead_id: int, session: Session = Depends(get_session)) -> RedirectResponse:
     lead = session.get(Lead, lead_id)
@@ -116,6 +141,21 @@ def dashboard_opt_out(lead_id: int, session: Session = Depends(get_session)) -> 
         raise HTTPException(status_code=404, detail="lead not found")
     compliance.handle_opt_out(session, lead, evidence="manual opt-out from dashboard")
     return RedirectResponse(f"/leads/{lead_id}", status_code=303)
+
+
+@router.get("/unsubscribe/{token}", response_class=HTMLResponse)
+@router.post("/unsubscribe/{token}", response_class=HTMLResponse)
+def unsubscribe(token: str, request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
+    """One-click email unsubscribe target (also used by List-Unsubscribe-Post)."""
+    lead = compliance.find_by_unsubscribe_token(session, token)
+    if lead is not None:
+        compliance.handle_email_unsubscribe(session, lead, evidence=f"one-click unsubscribe: {token[:8]}")
+    return templates.TemplateResponse(
+        request,
+        "unsubscribe.html",
+        {**_chrome(), "found": lead is not None},
+        status_code=200 if lead is not None else 404,
+    )
 
 
 @router.post("/campaigns/run")

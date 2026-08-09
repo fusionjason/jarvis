@@ -63,7 +63,9 @@ class MessageOut(BaseModel):
 
     id: int
     lead_id: int
+    channel: Channel
     direction: Direction
+    subject: str
     body: str
     provider_sid: str
     status: str
@@ -88,6 +90,11 @@ class CallOut(BaseModel):
 
 class SendTextRequest(BaseModel):
     body: str = Field(default="", description="Leave empty to let the assistant draft the message.")
+
+
+class SendEmailRequest(BaseModel):
+    subject: str = Field(default="", description="Leave empty to let the assistant draft it.")
+    body: str = Field(default="", description="Leave empty to let the assistant draft it.")
 
 
 class ImportResult(BaseModel):

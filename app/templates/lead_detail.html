@@ -4,7 +4,7 @@
 <div class="row" style="justify-content:space-between">
   <div>
     <h1 style="margin:0">{{ lead.full_name or 'Unknown lead' }}</h1>
-    <span class="blocked">{{ lead.phone }} · {{ lead.state or 'no state' }} · {{ lead.timezone }} ·
+    <span class="blocked">{{ lead.phone }} · {{ lead.email or 'no email' }} · {{ lead.state or 'no state' }} · {{ lead.timezone }} ·
       <span class="pill {{ lead.status.value }}">{{ lead.status.value.replace('_', ' ') }}</span>
     </span>
   </div>
@@ -16,14 +16,15 @@
 <h2>Contact eligibility</h2>
 <div class="card">
   <div>SMS: {% if sms_decision.allowed %}allowed{% else %}<span class="blocked">blocked — {{ sms_decision.reason }}</span>{% endif %}</div>
+  <div>Email: {% if email_decision.allowed %}allowed{% else %}<span class="blocked">blocked — {{ email_decision.reason }}</span>{% endif %}</div>
   <div>Voice: {% if voice_decision.allowed %}allowed{% else %}<span class="blocked">blocked — {{ voice_decision.reason }}</span>{% endif %}</div>
 </div>
 
 <h2>Conversation</h2>
 <div class="card">
   {% for message in messages %}
-  <div class="msg {{ message.direction.value }}">{{ message.body }}
-    <small>{{ message.direction.value }} · {{ message.status or 'sent' }} · {{ message.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+  <div class="msg {{ message.direction.value }}">{% if message.subject %}<b>{{ message.subject }}</b><br>{% endif %}{{ message.body }}
+    <small>{{ message.channel.value }} · {{ message.direction.value }} · {{ message.status or 'sent' }} · {{ message.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
   </div>
   {% else %}
   <span class="blocked">No messages yet.</span>
@@ -37,7 +38,14 @@
     <button type="submit">Send text</button>
   </div>
 </form>
-<form method="post" action="/leads/{{ lead.id }}/call" style="margin-top:10px">
+<form method="post" action="/leads/{{ lead.id }}/email" style="margin-top:14px">
+  <input type="text" name="subject" placeholder="Email subject (leave empty to let {{ settings.assistant_name }} draft it)">
+  <textarea name="body" rows="3" placeholder="Email body (leave empty to let {{ settings.assistant_name }} draft it)" style="margin-top:8px"></textarea>
+  <div class="row" style="margin-top:10px">
+    <button type="submit">Send email</button>
+  </div>
+</form>
+<form method="post" action="/leads/{{ lead.id }}/call" style="margin-top:14px">
   <button class="ghost" type="submit">Start AI voice call</button>
 </form>
 

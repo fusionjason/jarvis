@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import enum
+import secrets
 from datetime import datetime, timezone
 
 from sqlalchemy import (
@@ -37,6 +38,7 @@ class LeadStatus(str, enum.Enum):
 class Channel(str, enum.Enum):
     sms = "sms"
     voice = "voice"
+    email = "email"
 
 
 class Direction(str, enum.Enum):
@@ -57,6 +59,7 @@ class Lead(Base):
     last_name: Mapped[str] = mapped_column(String(80), default="")
     phone: Mapped[str] = mapped_column(String(20), unique=True, index=True)
     email: Mapped[str] = mapped_column(String(160), default="")
+    unsubscribe_token: Mapped[str] = mapped_column(String(64), default="", index=True)
     state: Mapped[str] = mapped_column(String(2), default="")
     timezone: Mapped[str] = mapped_column(String(64), default="America/New_York")
     age: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -76,6 +79,11 @@ class Lead(Base):
     @property
     def full_name(self) -> str:
         return f"{self.first_name} {self.last_name}".strip()
+
+    def ensure_unsubscribe_token(self) -> str:
+        if not self.unsubscribe_token:
+            self.unsubscribe_token = secrets.token_urlsafe(32)
+        return self.unsubscribe_token
 
 
 class Consent(Base):
@@ -107,9 +115,11 @@ class Message(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     lead_id: Mapped[int] = mapped_column(ForeignKey("leads.id", ondelete="CASCADE"), index=True)
+    channel: Mapped[Channel] = mapped_column(Enum(Channel), default=Channel.sms)
     direction: Mapped[Direction] = mapped_column(Enum(Direction))
+    subject: Mapped[str] = mapped_column(String(200), default="")
     body: Mapped[str] = mapped_column(Text)
-    provider_sid: Mapped[str] = mapped_column(String(64), default="")
+    provider_sid: Mapped[str] = mapped_column(String(120), default="")
     status: Mapped[str] = mapped_column(String(32), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 

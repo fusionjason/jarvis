@@ -32,5 +32,6 @@ def healthz() -> dict[str, object]:
     return {
         "ok": True,
         "twilio_configured": settings.twilio_configured,
+        "smtp_configured": settings.smtp_configured,
         "openai_configured": settings.openai_configured,
     }

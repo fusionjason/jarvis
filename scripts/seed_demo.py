@@ -10,23 +10,24 @@ from app.models import Campaign, CampaignStep, Channel, Lead
 from app.services import compliance, scheduler
 
 DEMO_LEADS = [
-    ("Maria", "Alvarez", "+15551230001", "TX", "term life, $500k"),
-    ("James", "Okafor", "+15551230002", "FL", "final expense"),
-    ("Priya", "Raman", "+15551230003", "CA", "whole life for kids"),
-    ("Tom", "Becker", "+15551230004", "NY", "term life, $250k"),
+    ("Maria", "Alvarez", "+15551230001", "maria@example.com", "TX", "term life, $500k"),
+    ("James", "Okafor", "+15551230002", "james@example.com", "FL", "final expense"),
+    ("Priya", "Raman", "+15551230003", "priya@example.com", "CA", "whole life for kids"),
+    ("Tom", "Becker", "+15551230004", "", "NY", "term life, $250k"),
 ]
 
 
 def main() -> None:
     init_db()
     with SessionLocal() as session:
-        for first, last, phone, state, interest in DEMO_LEADS:
+        for first, last, phone, email, state, interest in DEMO_LEADS:
             if session.query(Lead).filter(Lead.phone == phone).first():
                 continue
             lead = Lead(
                 first_name=first,
                 last_name=last,
                 phone=phone,
+                email=email,
                 state=state,
                 timezone=compliance.STATE_TIMEZONES.get(state, "America/New_York"),
                 coverage_interest=interest,
@@ -57,13 +58,20 @@ def main() -> None:
                         campaign_id=campaign.id,
                         position=2,
                         day_offset=1,
+                        channel=Channel.email,
+                        prompt="Recap the coverage options and offer two call times.",
+                    ),
+                    CampaignStep(
+                        campaign_id=campaign.id,
+                        position=3,
+                        day_offset=2,
                         channel=Channel.voice,
                         prompt="Qualify and book a licensed agent callback.",
                     ),
                     CampaignStep(
                         campaign_id=campaign.id,
-                        position=3,
-                        day_offset=4,
+                        position=4,
+                        day_offset=5,
                         channel=Channel.sms,
                         prompt="Last friendly nudge before pausing outreach.",
                     ),

@@ -16,6 +16,7 @@ from app.schemas import (
     LeadOut,
     LeadUpdate,
     MessageOut,
+    SendEmailRequest,
     SendTextRequest,
 )
 from app.services import compliance, conversation
@@ -94,6 +95,19 @@ def text_lead(
     )
     try:
         return conversation.send_text(session, lead, body)
+    except conversation.ContactBlocked as exc:
+        raise HTTPException(status_code=409, detail=exc.reason) from exc
+
+
+@router.post("/{lead_id}/email", response_model=MessageOut, status_code=201)
+def email_lead(
+    lead_id: int,
+    payload: SendEmailRequest,
+    session: Session = Depends(get_session),
+) -> object:
+    lead = _get_lead(session, lead_id)
+    try:
+        return conversation.send_email(session, lead, payload.subject, payload.body)
     except conversation.ContactBlocked as exc:
         raise HTTPException(status_code=409, detail=exc.reason) from exc
 

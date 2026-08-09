@@ -86,6 +86,15 @@ def run_due_steps(session: Session, now: datetime | None = None) -> tuple[int, i
                 )
                 conversation.send_text(session, lead, body, force=True)
                 details.append(f"lead {lead.id}: texted")
+            elif step.channel is Channel.email:
+                draft = llm.draft_email(
+                    lead.full_name,
+                    lead.coverage_interest,
+                    conversation.conversation_history(session, lead),
+                    goal=step.prompt or campaign.goal,
+                )
+                conversation.send_email(session, lead, draft.subject, draft.body, force=True)
+                details.append(f"lead {lead.id}: emailed")
             else:
                 conversation.start_call(session, lead, force=True)
                 details.append(f"lead {lead.id}: called")

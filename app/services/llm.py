@@ -112,6 +112,70 @@ def _fallback_sms(lead_name: str, history: list[tuple[str, str]]) -> str:
     )
 
 
+@dataclass
+class EmailDraft:
+    subject: str
+    body: str
+
+
+def draft_email(
+    lead_name: str, coverage_interest: str, history: list[tuple[str, str]], goal: str
+) -> EmailDraft:
+    """Draft the next outbound email. ``history`` is (role, body) pairs across channels."""
+    client = _client()
+    if client is None:
+        return _fallback_email(lead_name, coverage_interest)
+
+    settings = get_settings()
+    messages: list[dict[str, str]] = [
+        {
+            "role": "system",
+            "content": persona_instructions(lead_name)
+            + f"\nGoal of this email: {goal}\n"
+            + "Write a short plain-text email (under 120 words), no markdown, no placeholders like "
+            + "[Name], and no premium figures. Respond with JSON: "
+            + '{"subject": str, "body": str}. Do not add a signature or unsubscribe line - the '
+            + "system appends those.",
+        }
+    ]
+    for role, body in history:
+        messages.append({"role": "assistant" if role == "outbound" else "user", "content": body})
+
+    try:
+        response = client.chat.completions.create(
+            model=settings.openai_text_model,
+            response_format={"type": "json_object"},
+            messages=messages,  # type: ignore[call-overload]
+            max_tokens=500,
+            temperature=0.6,
+        )
+        payload = json.loads(response.choices[0].message.content or "{}")
+        subject = str(payload.get("subject", "")).strip()
+        body = str(payload.get("body", "")).strip()
+        if not subject or not body:
+            return _fallback_email(lead_name, coverage_interest)
+        return EmailDraft(subject=subject, body=body)
+    except Exception:
+        logger.exception("Email drafting failed; using fallback copy")
+        return _fallback_email(lead_name, coverage_interest)
+
+
+def _fallback_email(lead_name: str, coverage_interest: str) -> EmailDraft:
+    settings = get_settings()
+    first_name = lead_name.split(" ")[0] if lead_name else "there"
+    interest = f" about {coverage_interest}" if coverage_interest else ""
+    return EmailDraft(
+        subject=f"Your life insurance question, {first_name}",
+        body=(
+            f"Hi {first_name},\n\n"
+            f"I'm {settings.assistant_name}, an AI assistant with {settings.agency_name}. You reached "
+            f"out{interest}, and I'd like to get you in front of {settings.licensed_agent_name} who can "
+            "confirm your options and exact numbers.\n\n"
+            "What day and time work best for a short call this week?"
+        ),
+    )
+
+
 def analyze_call(transcript: str) -> CallAnalysis:
     """Summarize a call transcript and pick a disposition."""
     client = _client()
