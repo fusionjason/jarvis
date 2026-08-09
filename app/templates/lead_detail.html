@@ -13,6 +13,10 @@
   </form>
 </div>
 
+{% if error %}
+<div class="card error">Blocked — {{ error }}</div>
+{% endif %}
+
 <h2>Contact eligibility</h2>
 <div class="card">
   <div>SMS: {% if sms_decision.allowed %}allowed{% else %}<span class="blocked">blocked — {{ sms_decision.reason }}</span>{% endif %}</div>

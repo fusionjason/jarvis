@@ -83,3 +83,16 @@ def test_dashboard_renders(client: TestClient) -> None:
     detail = client.get("/leads/1")
     assert detail.status_code == 200
     assert "Compliance audit trail" in detail.text
+
+
+def test_dashboard_shows_reason_a_send_was_blocked(client: TestClient) -> None:
+    client.post(
+        "/api/leads",
+        json={"first_name": "Blocked", "phone": "+15551230055", "consent_evidence": "web form"},
+    )
+    client.post("/api/leads/1/opt-out")
+
+    redirect = client.post("/leads/1/email", data={"subject": "", "body": ""}, follow_redirects=False)
+    assert redirect.status_code == 303
+    page = client.get(redirect.headers["location"])
+    assert "lead marked do-not-contact" in page.text

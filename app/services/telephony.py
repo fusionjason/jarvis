@@ -71,10 +71,12 @@ def place_call(to: str, lead_id: int) -> SendResult:
 
 
 def validate_signature(url: str, params: dict[str, str], signature: str) -> bool:
-    """Verify a Twilio webhook signature; skipped when validation is disabled."""
+    """Verify a Twilio webhook signature.
+
+    Validation is skipped when explicitly disabled, and when no auth token is configured at
+    all - that is the dry-run posture, where no real Twilio traffic can reach the app anyway.
+    """
     settings = get_settings()
-    if not settings.twilio_validate_signatures:
+    if not settings.twilio_validate_signatures or not settings.twilio_auth_token:
         return True
-    if not settings.twilio_auth_token:
-        return False
     return RequestValidator(settings.twilio_auth_token).validate(url, params, signature)

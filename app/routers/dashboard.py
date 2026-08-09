@@ -52,7 +52,10 @@ def index(request: Request, session: Session = Depends(get_session)) -> HTMLResp
 
 @router.get("/leads/{lead_id}", response_class=HTMLResponse)
 def lead_detail(
-    lead_id: int, request: Request, session: Session = Depends(get_session)
+    lead_id: int,
+    request: Request,
+    error: str = "",
+    session: Session = Depends(get_session),
 ) -> HTMLResponse:
     lead = session.get(Lead, lead_id)
     if lead is None:
@@ -80,6 +83,7 @@ def lead_detail(
             "sms_decision": sms_decision,
             "email_decision": email_decision,
             "voice_decision": voice_decision,
+            "error": error,
         },
     )
 
