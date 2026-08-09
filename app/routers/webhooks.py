@@ -13,7 +13,7 @@ from twilio.twiml.voice_response import Connect, VoiceResponse
 from app.config import get_settings
 from app.db import SessionLocal, get_session
 from app.models import Call, Channel, Direction, Lead, Message
-from app.services import compliance, conversation, telephony
+from app.services import compliance, conversation, speech, telephony
 from app.services.realtime import MediaStreamBridge
 
 logger = logging.getLogger(__name__)
@@ -30,6 +30,15 @@ async def verified_form(request: Request) -> dict[str, str]:
 
 def _twiml(document: object) -> Response:
     return Response(content=str(document), media_type="application/xml")
+
+
+def _speak(response: VoiceResponse, text: str) -> None:
+    """Say `text` in the Google TTS voice, falling back to Twilio's own voice."""
+    url = speech.clip_url(text)
+    if url:
+        response.play(url)
+    else:
+        response.say(text, voice=get_settings().twilio_say_voice)
 
 
 @router.post("/sms/inbound")
@@ -74,19 +83,12 @@ async def voice_answer(request: Request, session: Session = Depends(get_session)
 
     response = VoiceResponse()
     if form.get("AnsweredBy", "").startswith("machine"):
-        response.say(
-            f"Hi, this is an automated assistant calling from {settings.agency_name} about your "
-            "life insurance request. We'll try you again, or call us back any time.",
-            voice="Polly.Joanna",
-        )
+        _speak(response, speech.voicemail_text())
         response.hangup()
         return _twiml(response)
 
     if settings.record_calls:
-        response.say(
-            "This call is with an automated assistant and may be recorded for quality assurance.",
-            voice="Polly.Joanna",
-        )
+        _speak(response, speech.disclosure_text())
 
     ws_base = settings.public_base_url.replace("https://", "wss://").replace("http://", "ws://")
     connect = Connect()

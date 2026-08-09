@@ -50,6 +50,7 @@
       <span class="{{ 'on' if twilio_ready else 'off' }}">Twilio {{ 'connected' if twilio_ready else 'dry-run' }}</span>
       <span class="{{ 'on' if smtp_ready else 'off' }}">Email {{ 'connected' if smtp_ready else 'dry-run' }}</span>
       <span class="{{ 'on' if openai_ready else 'off' }}">OpenAI {{ 'connected' if openai_ready else 'fallback' }}</span>
+      <span class="{{ 'on' if google_tts_ready else 'off' }}">Call voice {{ 'Google TTS' if google_tts_ready else 'Twilio' }}</span>
     </div>
   </header>
   <main>{% block content %}{% endblock %}</main>

@@ -25,6 +25,7 @@ def _chrome() -> dict[str, object]:
         "twilio_ready": settings.twilio_configured,
         "smtp_ready": settings.smtp_configured,
         "openai_ready": settings.openai_configured,
+        "google_tts_ready": settings.google_tts_configured,
     }
 
 

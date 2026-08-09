@@ -30,6 +30,15 @@ class Settings(BaseSettings):
     openai_realtime_model: str = "gpt-4o-realtime-preview-2024-12-17"
     openai_realtime_voice: str = "alloy"
 
+    # Google Cloud Text-to-Speech for the scripted call prompts. Empty voice = Twilio's own voice.
+    google_tts_voice: str = ""
+    google_tts_language_code: str = "en-US"
+    google_tts_speaking_rate: float = 1.0
+    google_application_credentials: str = ""
+    google_tts_timeout_seconds: float = 5.0
+    tts_cache_dir: str = "./media/tts"
+    twilio_say_voice: str = "Polly.Joanna"
+
     agency_name: str = "Your Agency"
     agency_mailing_address: str = "123 Main St, Suite 100, Anytown, ST 12345"
     assistant_name: str = "Avery"
@@ -48,6 +57,10 @@ class Settings(BaseSettings):
     @property
     def smtp_configured(self) -> bool:
         return bool(self.smtp_host and self.from_email)
+
+    @property
+    def google_tts_configured(self) -> bool:
+        return bool(self.google_tts_voice)
 
     @property
     def openai_configured(self) -> bool:

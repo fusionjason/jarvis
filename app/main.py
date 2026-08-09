@@ -8,7 +8,8 @@ from fastapi import FastAPI
 
 from app.config import get_settings
 from app.db import init_db
-from app.routers import campaigns, dashboard, leads, webhooks
+from app.routers import campaigns, dashboard, leads, media, webhooks
+from app.services import speech
 
 logging.basicConfig(level=logging.INFO)
 
@@ -16,6 +17,7 @@ logging.basicConfig(level=logging.INFO)
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     init_db()
+    speech.prewarm()
     yield
 
 
@@ -24,6 +26,7 @@ app = FastAPI(title=settings.app_name, lifespan=lifespan)
 app.include_router(dashboard.router)
 app.include_router(leads.router)
 app.include_router(campaigns.router)
+app.include_router(media.router)
 app.include_router(webhooks.router)
 
 
@@ -34,4 +37,5 @@ def healthz() -> dict[str, object]:
         "twilio_configured": settings.twilio_configured,
         "smtp_configured": settings.smtp_configured,
         "openai_configured": settings.openai_configured,
+        "google_tts_configured": settings.google_tts_configured,
     }

@@ -48,6 +48,9 @@ database, and drafting falls back to deterministic copy. Nothing is dialed, text
 6. `SMTP_HOST`/`SMTP_PORT`/`SMTP_USERNAME`/`SMTP_PASSWORD` work with any provider (SendGrid,
    Postmark, Mailgun, SES, Google Workspace).
 7. Register your 10DLC campaign with Twilio and enable Advanced Opt-Out before texting real numbers.
+8. Optional: set `GOOGLE_TTS_VOICE` (e.g. `en-US-Neural2-F`) and point `GOOGLE_APPLICATION_CREDENTIALS`
+   at a service account with the Cloud Text-to-Speech API enabled, to replace Twilio's built-in
+   voice on the scripted prompts.
 
 ## How a call works
 
@@ -64,6 +67,18 @@ place_call() -> Twilio dials the lead
 
 Answering machines are detected by Twilio (`machine_detection`) and get a short spoken message
 instead of a conversation.
+
+### Call voice
+
+The conversation itself is spoken by the OpenAI Realtime model (`OPENAI_REALTIME_VOICE`) — that
+audio is generated live and can't be swapped for a TTS voice. The *scripted* lines around it (the
+recording/AI disclosure and the voicemail message) are Twilio `<Say>` by default, or Google Cloud
+Text-to-Speech when `GOOGLE_TTS_VOICE` is set: `speech.py` synthesises them to MP3, caches them on
+disk by content hash under `TTS_CACHE_DIR`, and serves them at `/audio/{key}.mp3` for Twilio to
+`<Play>`. Clips are synthesised once at startup, because the first Google call in a process pays
+for credential discovery and that must not happen while a lead is on the line. If Google is
+unreachable or the credentials are rejected, the app logs it, stops retrying for a minute, and
+falls back to `<Say>` — a call is never dropped over a voice.
 
 ## Compliance model
 
@@ -90,6 +105,7 @@ app/services/compliance.py  contact gating, consent, DNC, opt-out keywords
 app/services/llm.py         persona, SMS/email drafting, call analysis
 app/services/mailer.py      SMTP sender, unsubscribe headers (dry-run when unconfigured)
 app/services/realtime.py    Twilio <-> OpenAI Realtime audio bridge
+app/services/speech.py      Google TTS for the scripted call prompts (falls back to Twilio Say)
 app/services/telephony.py   Twilio client (dry-run when unconfigured)
 app/services/conversation.py orchestration used by API, webhooks and scheduler
 app/services/scheduler.py   campaign cadence engine
