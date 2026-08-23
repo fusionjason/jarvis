@@ -1,0 +1,7 @@
+.env
+__pycache__/
+data/
+
+# Personal documents generated alongside Jarvis (recipes, assignment checklists, etc.) —
+# not part of the codebase, shouldn't ship in a portfolio/public repo.
+*.docx
