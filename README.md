@@ -6,7 +6,7 @@ A Windows desktop AI assistant (CLI + PyQt6 GUI), built on the Anthropic Claude 
 
 - **Voice interaction** — wake-word activation ("Hey Jarvis," via openWakeWord), local speech-to-text (faster-whisper), and 3-tier text-to-speech (ElevenLabs → Edge TTS → offline Windows SAPI5), with real-time barge-in support: the mic stays live while Jarvis talks, so you can interrupt it mid-reply and it responds to whatever you just said instead of finishing its sentence.
 - **Vision** — takes a photo with the webcam or a screenshot of the desktop and answers questions about what's in frame, using Claude's vision capability. Includes a "watch mode" that periodically screenshots the screen and offers live commentary/help while you work.
-- **System control** — file read/write, running shell commands, launching apps, media playback control (OS-level media keys plus direct iTunes COM automation for library search/playback), system volume.
+- **System control** — file read/write, running shell commands, launching and closing apps, media playback control (OS-level media keys plus direct iTunes COM automation for library search/playback), system volume.
 - **Email** — reads, searches (Gmail search syntax), downloads attachments from, and sends email across multiple Gmail accounts via IMAP/SMTP, including multi-file attachments.
 - **Live market data** — stock and cryptocurrency price lookups via Yahoo Finance (`yfinance`), plus read-only access to a separate personal trading-bot project's logs and trade journal for portfolio Q&A.
 - **Document generation** — creates Word documents (bulleted/numbered lists, headings) for anything from recipes to assignment checklists.
@@ -20,6 +20,8 @@ A Windows desktop AI assistant (CLI + PyQt6 GUI), built on the Anthropic Claude 
 - `tools.py` — ~30 tools registered with the model, each a plain Python function decorated with `@beta_tool`
 - `voice.py` — audio I/O: mic capture with silence detection, wake-word detection with adaptive gain normalization (the mic's input level swings wildly between recordings, so this normalizes it), and the barge-in listener that runs concurrently with TTS playback
 - `config.py` — settings, loaded from a gitignored `.env`
+- `assignment_tool.py` — small fixed CLI for marking a tracker item done/not-done by title text
+- `build_checklist.py` — regenerates a Word checklist doc from `data/assignments.json`
 
 ## Stack
 
