@@ -194,6 +194,54 @@ def open_application(name: str) -> str:
             return f"Error opening {name}: {e}"
 
 
+@beta_tool
+def close_application(name: str) -> str:
+    """Close a running application by name (e.g. "notepad", "chrome", "spotify"). Always asks
+    the user to confirm first — showing exactly which running process(es) matched — since this
+    can close a program with unsaved work.
+
+    Args:
+        name: The application/process name to close, with or without ".exe" — matches
+            case-insensitively against currently running process names.
+    """
+    try:
+        import psutil
+    except ImportError:
+        return "Error: psutil isn't installed — run 'pip install psutil' to enable closing applications."
+
+    target = name.lower().strip().removesuffix(".exe")
+    matches = [
+        p for p in psutil.process_iter(["pid", "name"])
+        if p.info["name"] and p.info["name"].lower().removesuffix(".exe") == target
+    ]
+    if not matches:
+        return f"No running process found matching '{name}'."
+
+    names = ", ".join(f"{p.info['name']} (pid {p.pid})" for p in matches)
+    if not _confirm(f"Close {len(matches)} process(es): {names}?"):
+        return "User declined to close the application."
+
+    closed, errors = [], []
+    for p in matches:
+        try:
+            p.terminate()
+            closed.append(p.info["name"])
+        except Exception as e:
+            errors.append(f"{p.info['name']} (pid {p.pid}): {e}")
+
+    _gone, alive = psutil.wait_procs(matches, timeout=3)
+    for p in alive:
+        try:
+            p.kill()  # didn't exit gracefully in time — force it
+        except Exception:
+            pass
+
+    result = f"Closed: {', '.join(closed)}" if closed else "Nothing closed."
+    if errors:
+        result += f" | Errors: {'; '.join(errors)}"
+    return result
+
+
 # ---------------------------------------------------------------------------
 # Media control
 # ---------------------------------------------------------------------------
@@ -1228,6 +1276,7 @@ ALL_TOOLS = [
     write_file,
     run_command,
     open_application,
+    close_application,
     media_control,
     play_music,
     quit_music,
